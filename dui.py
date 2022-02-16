@@ -10,7 +10,21 @@ from datetime import datetime
 print('Connecting to database...')
 client = pmg.MongoClient(host="localhost", port=27017)
 
+def reporting_points(file_name, cursor):
+    print('Rendering just started...')
+    coor = []
+    for i in cursor:
+        coor.append(i['location']['coordinates'])
+                
+    Map = folium.Map()
+    folium.CircleMarker(radius=3, fill=False, location=[lat, lon], color='red').add_to(Map)
 
+    for i in range(len(coor)):
+        folium.CircleMarker(radius=1, fill=True, location=[coor[i][1],coor[i][0]], color='blue').add_to(Map)
+
+    Map.save(file_name+'.html')
+    print('Render just ended!')
+    
 try:
     client.admin.command('ismaster')
     print("Connected Sucessfully")
@@ -26,9 +40,9 @@ try:
         if query_type == 1:
             relational()
         elif query_type == 2:
-            spatial()
+            spatial() #DONE
         elif query_type == 3:
-            spatiotemporal()
+            spatiotemporal() #DONE
         elif query_type == 4:
             trajectory() #DONE
         else:
@@ -47,11 +61,11 @@ try:
         if query_type == 1:
             knn_spatial() #DONE
         elif query_type == 2:
-            circle_spatial() #~~~
+            circle_spatial() #DONE
         elif query_type == 3:
-            torus_spatial() #~~~
+            torus_spatial() #DONE
         elif query_type == 4:
-            polygon_spatial() #~~~
+            triangle_spatial() #DONE
         else:
             flag = True
             while flag:
@@ -75,19 +89,8 @@ try:
                                        'spherical': 'true'}}, {'$limit': k}])
             print('Aggregation ended in', str(round(time()-tic, 5)), 'seconds')
             #----------------------------------------------------------------------------------------------------------
-            print('Rendering just started...')
-            coor = []
-            for i in cursor:
-                coor.append(i['location']['coordinates'])
-                
-            Map = folium.Map()
-            folium.CircleMarker(radius=3, fill=False, location=[lat, lon], color='red').add_to(Map)
-
-            for i in range(len(coor)):
-                folium.CircleMarker(radius=1, fill=True, location=[coor[i][1],coor[i][0]], color='blue').add_to(Map)
-
-            Map.save('Mpa_knn_spatial.html')
-            print('Render just ended!')
+            file_name = input('Give file name.\n')
+            reporting_points(file_name, cursor)
             #----------------------------------------------------------------------------------------------------------
             flag = True
             while flag:
@@ -100,31 +103,110 @@ try:
                 menu()
         except:
             print('Error/s occured. Please try again.')
-            knn_spatial()
+            menu() 
 
     #$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
     def circle_spatial():
-        pass
+        try:
+            global raw
+            radius_miles = int(input('Give radius in miles.\n'))
+            lon = float(input('Give longtitude.\n'))
+            lat = float(input('Give latitude.\n'))
+            tic = time()
+            cursor = raw.aggregate([{'location':{'$geoWithin':{'$centerSphere':[[lon, lat], radius_miles/3963.2]}}}])
+            
+            print('Aggregation ended in', str(round(time()-tic, 5)), 'seconds')
+            #----------------------------------------------------------------------------------------------------------
+            file_name = input('Give file name.\n')
+            reporting_points(file_name, cursor)   
+            #----------------------------------------------------------------------------------------------------------
+            flag = True
+            while flag:
+                gate = int(input('0 : k-nearest neighbors\n1 : main menu\n'))
+                if gate ==0 or gate == 1:
+                    flag = False
+            if gate == 0:
+                knn_spatial()
+            else:
+                menu()
+        except:
+            print('Error/s occured. Please try again.')
+            menu()
     
     #$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
     def torus_spatial():
-        pass
+        try:
+            global raw
+            dismin = int(input('Give minimum distance.\n'))
+            dismax = int(input('Give maximum distance.\n'))
+            lon = float(input('Give longtitude.\n'))
+            lat = float(input('Give latitude.\n'))
+            tic = time()
+            cursor = raw.aggregate([{'$geoNear':{'near':{'type':'Point', 'coordinates':[lon, lat]},
+                                       'distanceField':'dist.calculated', 'maxDistance':dismax, 'minDistance':dismin,'spherical':'ture'}}])
+            print('Aggregation ended in', str(round(time()-tic, 5)), 'seconds')
+            #----------------------------------------------------------------------------------------------------------
+            file_name = input('Give file name.\n')
+            reporting_points(file_name, cursor)
+            #----------------------------------------------------------------------------------------------------------
+            flag = True
+            while flag:
+                gate = int(input('0 : k-nearest neighbors\n1 : main menu\n'))
+                if gate ==0 or gate == 1:
+                    flag = False
+            if gate == 0:
+                knn_spatial()
+            else:
+                menu()
+        except:
+            print('Error/s occured. Please try again.')
+            menu() 
     #$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
-    def polygon_spatial():
-        pass
+    def triangle_spatial():
+        try:
+            global raw
+            lon1 = float(input('Give first longtitude.\n'))
+            lat1 = float(input('Give first latitude.\n'))
+            
+            lon2 = float(input('Give second longtitude.\n'))
+            lat2 = float(input('Give second latitude.\n'))
+            
+            lon3 = float(input('Give third longtitude.\n'))
+            lat3 = float(input('Give third latitude.\n'))
+            
+            tic = time()
+            cursor = raw.aggregate([{'$match':{'location':{'$geoWithin':{'$geometry':{'type': 'Polygon' ,
+                                                                            'coordinates': [ [ [lon1,lat1],[lon2,lat2],[lon3,lat3]]]}}}}}])
+            print('Aggregation ended in', str(round(time()-tic, 5)), 'seconds')
+            #----------------------------------------------------------------------------------------------------------
+            file_name = input('Give file name.\n')
+            reporting_points(file_name, cursor)
+            #----------------------------------------------------------------------------------------------------------
+            flag = True
+            while flag:
+                gate = int(input('0 : k-nearest neighbors\n1 : main menu\n'))
+                if gate ==0 or gate == 1:
+                    flag = False
+            if gate == 0:
+                knn_spatial()
+            else:
+                menu()
+        except:
+            print('Error/s occured. Please try again.')
+            menu() 
             
     #OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO
             
     def spatiotemporal():
         query_type = int(input('1 : k-nearest neighbors\n2 : Circle Range Query\n3 : Torus Range Query\n4 : Polygon Range Query\n'))
         if query_type == 1:
-            knn_spatiotemp()
+            knn_spatiotemp() #DONE
         elif query_type == 2:
-            circle_spatiotemp()
+            circle_spatiotemp() #DONE
         elif quesry_type == 3:
-            torus_spatiotemp()
+            torus_spatiotemp() #DONE
         elif query_type == 4:
-            polygon_spatiotemp()
+            triangle_spatiotemp() #DONE
         else:
             flag = True
             while flag:
@@ -139,6 +221,8 @@ try:
     def knn_spatiotemp():
         try:
             global raw
+            tmin = int(input('Give minimum time.\n'))
+            tmax = int(input('Give maximum time.\n'))
             k = int(input('Give k.\n'))
             lon = float(input('Give longtitude.\n'))
             lat = float(input('Give latitude.\n'))
@@ -149,19 +233,8 @@ try:
                         'spherical': 'true'}}, {'$limit': k}]) 
             print('Aggregation ended in', str(round(time()-tic, 5)), 'seconds')
             #----------------------------------------------------------------------------------------------------------
-            print('Rendering just started...')
-            coor = []
-            for i in cursor:
-                coor.append(i['location']['coordinates'])
-                
-            Map = folium.Map()
-            folium.CircleMarker(radius=3, fill=False, location=[lat, lon], color='red').add_to(Map)
-
-            for i in range(len(coor)):
-                folium.CircleMarker(radius=1, fill=True, location=[coor[i][1],coor[i][0]], color='blue').add_to(Map)
-
-            Map.save('Mpa_knn_spatiotemporal.html')
-            print('Render just ended!')
+            file_name = input('Give file name.\n')
+            reporting_points(file_name, cursor)
             #----------------------------------------------------------------------------------------------------------
             flag = True
             while flag:
@@ -174,17 +247,106 @@ try:
                 menu()
         except:
             print('Error/s occured. Please try again.')
-            knn_spatiotemp()
+            menu()
     #$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
     def circle_spatiotemp():
-        pass
+        try:
+            global raw
+            radius_miles = int(input('Give radius in miles.\n'))
+            tmin = int(input('Give minimum time.\n'))
+            tmax = int(input('Give maximum time.\n'))
+            lon = float(input('Give longtitude.\n'))
+            lat = float(input('Give latitude.\n'))
+            tic = time()
+            cursor = raw.aggregate([{'$match':{'t':{'$gte':tmin,'$lte' :tmax}}},
+                                    {'location':{'$geoWithin':{'$centerSphere':[[lon,lat],radius_miles/3963.2] } }} ] )
+
+            print('Aggregation ended in', str(round(time()-tic, 5)), 'seconds')
+            #----------------------------------------------------------------------------------------------------------
+            file_name = input('Give file name.\n')
+            reporting_points(file_name, cursor)
+            #----------------------------------------------------------------------------------------------------------
+            flag = True
+            while flag:
+                gate = int(input('0 : k-nearest neighbors\n1 : main menu\n'))
+                if gate ==0 or gate == 1:
+                    flag = False
+            if gate == 0:
+                knn_spatial()
+            else:
+                menu()
+        except:
+            print('Error/s occured. Please try again.')
+            menu()
     
     #$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
     def torus_spatiotemp():
-        pass
+        try:
+            global raw
+            dismin = int(input('Give minimum distance.\n'))
+            dismax = int(input('Give maximum distance.\n'))
+            tmin = int(input('Give minimum time.\n'))
+            tmax = int(input('Give maximum time.\n'))
+            lon = float(input('Give longtitude.\n'))
+            lat = float(input('Give latitude.\n'))
+            tic = time()
+            cursor = raw.aggregate([{'$match':{'t':{'$gte':tmin,'$lte':tmax}}},
+                                    {'$geoNear':{'near':{'type':'Point', 'coordinates':[lon, lat]},
+                                       'distanceField':'dist.calculated', 'maxDistance':dismax, 'minDistance':dismin,'spherical':'true'}}])
+
+            print('Aggregation ended in', str(round(time()-tic, 5)), 'seconds')
+            #----------------------------------------------------------------------------------------------------------
+            file_name = input('Give file name.\n')
+            reporting_points(file_name, cursor)
+            #----------------------------------------------------------------------------------------------------------
+            flag = True
+            while flag:
+                gate = int(input('0 : k-nearest neighbors\n1 : main menu\n'))
+                if gate ==0 or gate == 1:
+                    flag = False
+            if gate == 0:
+                knn_spatial()
+            else:
+                menu()
+        except:
+            print('Error/s occured. Please try again.')
+            menu()
     #$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
-    def polygon_spatioptemp():
-        pass
+    def triangle_spatioptemp():
+        try:
+            global raw
+            tmin = int(input('Give minimum time.\n'))
+            tmax = int(input('Give maximum time.\n'))
+            lon1 = float(input('Give first longtitude.\n'))
+            lat1 = float(input('Give first latitude.\n'))
+            
+            lon2 = float(input('Give second longtitude.\n'))
+            lat2 = float(input('Give second latitude.\n'))
+            
+            lon3 = float(input('Give third longtitude.\n'))
+            lat3 = float(input('Give third latitude.\n'))
+            tic = time()
+            cursor = raw.aggregate([{'$match':{'t':{'$gte':tmin,'$lte':tmax}}},
+                          {'$match':{'location':{'$geoWithin':{'$geometry':{'type': 'Polygon' ,
+                                                                            'coordinates': [ [ [lon1,lat1],[lon2,lat2],[lon3,lat3]]]}}}}}]) 
+
+            print('Aggregation ended in', str(round(time()-tic, 5)), 'seconds')
+            #----------------------------------------------------------------------------------------------------------
+            file_name = input('Give file name.\n')
+            reporting_points(file_name, cursor)
+            #----------------------------------------------------------------------------------------------------------
+            flag = True
+            while flag:
+                gate = int(input('0 : k-nearest neighbors\n1 : main menu\n'))
+                if gate ==0 or gate == 1:
+                    flag = False
+            if gate == 0:
+                knn_spatial()
+            else:
+                menu()
+        except:
+            print('Error/s occured. Please try again.')
+            menu()
             
     #OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO
             
