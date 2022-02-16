@@ -10,20 +10,48 @@ from datetime import datetime
 print('Connecting to database...')
 client = pmg.MongoClient(host="localhost", port=27017)
 
-def reporting_points(file_name, cursor):
+def reporting_points(file_name, cursor, flag):
     print('Rendering just started...')
     coor = []
+    times = []
+    mmsis = []
     for i in cursor:
+        times.append(i['t'])
+        mmsis.append(i['sourcemmsi'])
         coor.append(i['location']['coordinates'])
-                
+    
     Map = folium.Map()
-    folium.CircleMarker(radius=3, fill=False, location=[lat, lon], color='red').add_to(Map)
 
     for i in range(len(coor)):
-        folium.CircleMarker(radius=1, fill=True, location=[coor[i][1],coor[i][0]], color='blue').add_to(Map)
-
+        folium.CircleMarker(radius=1, fill=True,location=[coor[i][1],coor[i][0]],popup=str(mmsis[i]),tooltip=str(datetime.fromtimestamp(times[i])),color='blue').add_to(Map)
     Map.save(file_name+'.html')
     print('Render just ended!')
+
+def reporting_relational(file_name, cursor):
+    print('Rendering just started...')
+    times = []
+    mmsis = []
+    Map = folium.Map()
+    for i in cursor:
+        #print(i)
+        for j in i['pos']:
+            #print(j)
+            lon = j['loc']['coordinates'][1]
+            lat = j['loc']['coordinates'][0]
+            t = j['time']
+            folium.CircleMarker(radius=1, fill=True,location=[lon,lat],popup=str(i['mmsi']),tooltip=str(datetime.fromtimestamp(t)),color='blue').add_to(Map)
+    """
+        t = i['pos']['time']
+        ms = i['mmsi']
+        print(ms)
+        coor = i['location']['coordinates']
+        for j in range(len(coor)):
+                    mmsis.append(ms)
+
+    """
+    Map.save(file_name+'.html')
+    print('Render just ended!')
+
     
 try:
     client.admin.command('ismaster')
@@ -36,7 +64,7 @@ try:
 
     def menu():
         global raw
-        query_type = int(input('1 : Relational Queries\n2 : Spatial Queries\n3 : Spatio-temporal Queries\n4 : Trajectory Queries\n'))
+        query_type = int(input('1 : Relational Queries\n2 : Spatial Queries\n3 : Spatio-temporal Queries\n4 : Trajectory Queries\n5 : Exit\n'))
         if query_type == 1:
             relational()
         elif query_type == 2:
@@ -45,15 +73,77 @@ try:
             spatiotemporal() #DONE
         elif query_type == 4:
             trajectory() #DONE
+        elif query_type == 5:
+            exit()
         else:
             print('Invalid input, please try again')
             menu()
 
     #OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO
-            
+    
     def relational():
-        pass
+        query_type = int(input('1 : Flags Query\n2 : Mean Speed\n3 : Ship Type Query\n4 : Flag-Type Join Query\n'))
+        if query_type == 1:
+            flag_q() 
+        elif query_type == 2:
+            mean_speed() 
+        elif query_type == 3:
+            ship_type()
+        elif query_type == 4:
+            flag_type()
+        else:
+            flag = True
+            while flag:
+                kappa = int(input('Invalid input, give 0 to main menu or 1 to spatial menu\n'))
+                if kappa == 0 or kappa == 1:
+                    flag = False
+            if kappa == 0:
+                menu()
+            else:
+                spatial()
 
+    #$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
+    def flag_q():
+        global traj
+        country = input('Give flag\'s name.\n')
+        tic = time()
+        cursor = traj.aggregate([{'$match':{'flag':country}}])
+        print('Aggregation ended in', str(round(time()-tic, 5)), 'seconds')
+        file_name = input('Give file name.\n')
+        reporting_relational(file_name, cursor)
+        menu()
+    #$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
+    def mean_speed():
+        global traj
+        msi = int(input('Give ship\'s mmsi.\n'))
+        tic = time()
+        cursor = traj.aggregate([{'$match':{'mmsi':msi}}, {'$unwind':'$pos'}, {'$group':{'_id':'Average', 'average_speed':{'$avg':'$pos.speed'}}}])
+        print('Aggregation ended in', str(round(time()-tic, 5)), 'seconds')
+        for i in cursor:
+            avg_s = i['average_speed']
+        print('Ship\'s average speed =', str(avg_s))
+        menu()
+    #$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
+    def ship_type():
+        global traj
+        s_type = input('Give ships\'s type.\n')
+        tic = time()
+        cursor = traj.aggregate([{'$match':{'ship_type':s_type}}])
+        print('Aggregation ended in', str(round(time()-tic, 5)), 'seconds')
+        file_name = input('Give file name.\n')
+        reporting_relational(file_name, cursor)
+        menu()
+    #$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
+    def flag_type():
+        global traj
+        country = input('Give flag\'s name.\n')
+        s_type = input('Give ship\'s type.\n')
+        tic = time()
+        cursor = traj.aggregate([{'$match':{'flag':country, 'ship_type':s_type}}])
+        print('Aggregation ended in', str(round(time()-tic, 5)), 'seconds')
+        file_name = input('Give file name.\n')
+        reporting_relational(file_name, cursor)
+        menu()
     #OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO
     
     def spatial():
