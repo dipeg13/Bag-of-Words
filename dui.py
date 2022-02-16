@@ -6,6 +6,7 @@ from tslearn.metrics import lcss
 import matplotlib.pyplot as plt
 from time import time
 from datetime import datetime
+from shapely.geometry import Polygon
 
 print('Connecting to database...')
 client = pmg.MongoClient(host="localhost", port=27017)
@@ -59,14 +60,16 @@ try:
 
 
     db = client['task_mongo']
-    traj = db['coorData']
+    #το coorData έχει ακόμα εγγραφές με μηδενικά trajectories τα οποία πρέπει να γεμίσω, αλλιώς το similar trajectories πετάσει division by zero error
+    #traj = db['coorData']
+    traj = db['testColl']
     raw = db['nari_raw']
 
     def menu():
         global raw
         query_type = int(input('1 : Relational Queries\n2 : Spatial Queries\n3 : Spatio-temporal Queries\n4 : Trajectory Queries\n5 : Exit\n'))
         if query_type == 1:
-            relational() #DONE
+            relational()
         elif query_type == 2:
             spatial() #DONE
         elif query_type == 3:
@@ -84,13 +87,13 @@ try:
     def relational():
         query_type = int(input('1 : Flags Query\n2 : Mean Speed\n3 : Ship Type Query\n4 : Flag-Type Join Query\n'))
         if query_type == 1:
-            flag_q() #DONE
+            flag_q() 
         elif query_type == 2:
-            mean_speed() #DONE
+            mean_speed() 
         elif query_type == 3:
-            ship_type() #DONE
+            ship_type()
         elif query_type == 4:
-            flag_type() #DONE
+            flag_type()
         else:
             flag = True
             while flag:
@@ -463,18 +466,14 @@ try:
         try:
             if 1==1:
                 global traj
-                mmsi_target = int(input('Give vessel\'s MMSI\n'))
-                print(999)
+                mmsi_target = int(input('Give vessel\'s mmsi\n'))
                 k = int(input('Give k.\n'))
-                print(16)
                 tic = time()
-                print(1)
                 
                 cur = traj.find({'mmsi' : mmsi_target})
                 mmsiList = traj.distinct('mmsi')
                 tra = []
                 times = []
-                print(666)
                 for i in cur:
                     for j in i['pos']:
                         times.append(j['time'])
@@ -484,10 +483,10 @@ try:
                 othersTra = []
                 othersTime = []
                 lista_twn_mmsis = []
-                print(666)
                 for mmsi in mmsiList:
                     temp_tra = []
                     temp_time = []
+                    
                     if mmsi!=mmsi_target:
                         lista_twn_mmsis.append(mmsi)
                         temp_cur = traj.find({'mmsi':mmsi})
@@ -518,16 +517,17 @@ try:
                 #----------------------------------------------------------------------------------------------------------
                 flag = True
                 while flag:
-                    gate = int(input('0 : k-most similar\n1 : main menu\n'))
-                    if gate ==0 or gate == 1:
+                    gate = int(input('1 : k-most similar\n2 : main menu\n'))
+                    if gate ==1 or gate == 2:
                         flag = False
-                if gate == 0:
+                if gate == 1:
                     k_most_similar()
                 else:
                     menu()
-        except:
-            print('Error/s occured. Please try again.')
-            trajectory()
+        except Exception as e:
+            print(e)
+            #print('Error/s occured. Please try again.')
+            #menu()
             
     #$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
 
@@ -592,16 +592,16 @@ try:
             #----------------------------------------------------------------------------------------------------------
             flag = True
             while flag:
-                gate = int(input('0 : overlapping trajectories\n1 : main menu\n'))
-                if gate ==0 or gate == 1:
+                gate = int(input('1 : overlapping trajectories\n2 : main menu\n'))
+                if gate == 1 or gate == 2:
                     flag = False
-            if gate == 0:
+            if gate == 1:
                 overlapping()
             else:
                 menu()
-        except:
+        except :
             print('Error/s occured. Please try again.')
-            trajectory()    
+            menu()    
 
 
 
@@ -612,4 +612,6 @@ try:
 
 except pmg.errors.ConnectionFailure:
     print("Server not available")
+
+
 
