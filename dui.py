@@ -66,7 +66,7 @@ try:
         global raw
         query_type = int(input('1 : Relational Queries\n2 : Spatial Queries\n3 : Spatio-temporal Queries\n4 : Trajectory Queries\n5 : Exit\n'))
         if query_type == 1:
-            relational()
+            relational() #DONE
         elif query_type == 2:
             spatial() #DONE
         elif query_type == 3:
@@ -84,13 +84,13 @@ try:
     def relational():
         query_type = int(input('1 : Flags Query\n2 : Mean Speed\n3 : Ship Type Query\n4 : Flag-Type Join Query\n'))
         if query_type == 1:
-            flag_q() 
+            flag_q() #DONE
         elif query_type == 2:
-            mean_speed() 
+            mean_speed() #DONE
         elif query_type == 3:
-            ship_type()
+            ship_type() #DONE
         elif query_type == 4:
-            flag_type()
+            flag_type() #DONE
         else:
             flag = True
             while flag:
